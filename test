@@ -1,0 +1,145 @@
+import streamlit as st
+import os
+import json
+from utils.sentiment import get_sentiment_score
+from utils.safety import detect_risk
+from utils.ai_engine import generate_response
+from utils.memory import load_memory, save_memory, update_memory, extract_memory_context
+
+st.set_page_config(page_title="AntarAtma", layout="wide")
+
+# Load exercises
+@st.cache_data
+def load_exercises():
+    base_path = os.path.join(os.path.dirname(__file__), "exercises")
+    exercises = {}
+    for ex in ["breathing", "journaling", "grounding"]:
+        try:
+            with open(os.path.join(base_path, f"{ex}.json")) as f:
+                exercises[ex] = json.load(f)
+        except Exception as e:
+            exercises[ex] = {"error": f"Could not load {ex} exercise: {e}"}
+    return exercises
+
+exercises = load_exercises()
+
+# Initialize session state
+if "history" not in st.session_state:
+    st.session_state.history = []
+
+if "memory" not in st.session_state:
+    st.session_state.memory = load_memory()
+
+if "input_triggered" not in st.session_state:
+    st.session_state.input_triggered = False
+
+# Header
+st.markdown("<h1 style='text-align: center;'>🧘 AntarAtma</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center;'>Your AI-powered mental wellness companion</p>", unsafe_allow_html=True)
+
+# Style
+# Style
+st.markdown("""
+    <style>
+    .input-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background-color: white;
+        padding: 10px 5%;
+        box-shadow: 0 -2px 8px rgba(0,0,0,0.15);
+        z-index: 999;
+    }
+    .stTextInput > div > div > input {
+        height: 40px;
+        font-size: 16px;
+    }
+    .chat-msg {
+        padding: 0.75rem 1rem;
+        margin: 0.4rem 0;
+        border-radius: 12px;
+        line-height: 1.6;
+        font-size: 16px;
+        max-width: 90%;
+        word-wrap: break-word;
+    }
+    .user-msg {
+        background-color: #d1f2eb;
+        text-align: right;
+        margin-left: auto;
+        color: black;
+    }
+    .bot-msg {
+        background-color: #6603fc;
+        text-align: left;
+        margin-right: auto;
+        color: white;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+
+# Chat history display
+with st.container():
+    for i in range(0, len(st.session_state.history), 2):
+        user_msg = st.session_state.history[i]["parts"][0]
+        bot_msg = st.session_state.history[i + 1]["parts"][0] if i + 1 < len(st.session_state.history) else ""
+        st.markdown(f"<div class='chat-msg user-msg'><b>You:</b> {user_msg}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='chat-msg bot-msg'><b>AntarAtma:</b> {bot_msg}</div>", unsafe_allow_html=True)
+
+# ✅ Process input BEFORE rendering widget
+if st.session_state.input_triggered:
+    user_input = st.session_state.user_input.strip()
+
+    if user_input:
+        risk = detect_risk(user_input)
+        sentiment = get_sentiment_score(user_input)
+        st.session_state.history.append({"role": "user", "parts": [user_input]})
+
+        if risk:
+            response = generate_response(user_input, crisis_mode=True)
+        else:
+            memory_context = extract_memory_context(user_input, st.session_state.memory)
+            response = generate_response(user_input, st.session_state.history, memory_context)
+
+            update_memory(user_input, st.session_state.memory)
+            save_memory(st.session_state.memory)
+
+            if sentiment < -0.2:
+                st.info("You seem to be feeling low. Here's a helpful breathing technique:")
+                st.json(exercises["breathing"])
+
+        st.session_state.history.append({"role": "model", "parts": [response]})
+
+    # Reset state BEFORE widget renders again
+    st.session_state.user_input = ""
+    st.session_state.input_triggered = False
+    st.experimental_rerun()
+
+# Input field
+st.markdown('<div class="input-container">', unsafe_allow_html=True)
+user_input = st.text_input(
+    "Type your message here:",
+    key="user_input",
+    label_visibility="collapsed",
+    placeholder="How are you feeling today?",
+    on_change=lambda: st.session_state.update({"input_triggered": True})
+)
+st.markdown('</div>', unsafe_allow_html=True)
+
+# Memory viewer
+with st.expander("🧠 View remembered info"):
+    st.json(st.session_state.memory)
+
+# Reset
+if st.button("🔄 Reset Session"):
+    st.session_state.history = []
+    st.session_state.memory = {}
+    st.session_state.user_input = ""
+    st.session_state.input_triggered = False
+    save_memory({})
+    st.experimental_rerun()
+
+st.markdown("<br><br><br><br><br>", unsafe_allow_html=True)
+st.caption("🛡️ AntarAtma is a self-help companion, not a substitute for professional care.")
