@@ -198,7 +198,7 @@ if st.session_state.input_triggered:
     # Reset state BEFORE widget renders again
     st.session_state.user_input = ""
     st.session_state.input_triggered = False
-    st.experimental_rerun()
+    st.rerun()
 
 # Input field
 st.markdown('<div class="input-container">', unsafe_allow_html=True)
@@ -226,7 +226,7 @@ if st.button("🔄 Reset Session"):
         del st.session_state["user_input"]
 
     save_memory({})
-    st.experimental_rerun()
+    st.rerun();
 
 st.markdown("<br><br><br><br><br>", unsafe_allow_html=True)
 st.caption("🛡️ AntarAtma is a self-help companion, not a substitute for professional care.")
