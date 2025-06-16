@@ -3,7 +3,6 @@
 
 > _“In a world full of noise, **AntarAtma** listens deeply.”_
 
-![banner](https://user-images.githubusercontent.com/placeholder/antaratma-banner.png)  
 _A minimal yet powerful mental health chatbot powered by AI + NLP._
 
 ---
