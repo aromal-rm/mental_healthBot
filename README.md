@@ -40,16 +40,6 @@ _A minimal yet powerful mental health chatbot powered by AI + NLP._
 
 ---
 
-## 📸 Screenshots
-
-> _Note: Add actual screenshots in `assets/` or link from Imgur/GitHub_
-
-| Chat UI                           | Sentiment-Based Suggestion     | Memory View        |
-|----------------------------------|---------------------------------|--------------------|
-| ![](assets/chat.png)             | ![](assets/suggestion.png)      | ![](assets/memory.png) |
-
----
-
 ## 🚀 Getting Started
 
 ### 📥 1. Clone the Repo
