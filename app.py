@@ -62,6 +62,9 @@ if "memory" not in st.session_state:
 if "input_triggered" not in st.session_state:
     st.session_state.input_triggered = False
 
+if "message_count" not in st.session_state:
+    st.session_state.message_count = 0
+
 # Custom CSS for the app
 st.markdown("""
 <style>
@@ -358,15 +361,25 @@ if st.session_state.input_triggered:
                         <p><strong>{exercises["breathing"]["name"]}</strong>: {exercises["breathing"]["description"]}</p>
                         <p>Steps: {exercises["breathing"]["steps"]}</p>
                     </div>
-                    """, unsafe_allow_html=True)
-
-        # Add response to history (clean it before storing)
+                    """, unsafe_allow_html=True)        # Add response to history (clean it before storing)
         cleaned_response = clean_response(response)
         st.session_state.history.append({"role": "model", "parts": [cleaned_response]})
 
     # Reset input state
     st.session_state.input_triggered = False
     st.session_state.user_input = ""
+    
+    # Trigger scroll before rerun
+    st.markdown('''
+    <script>
+    setTimeout(function() {
+        window.scrollTo(0, document.body.scrollHeight);
+        var main = document.querySelector('section.main');
+        if (main) main.scrollTop = main.scrollHeight;
+    }, 50);
+    </script>
+    ''', unsafe_allow_html=True)
+    
     st.rerun()
 
 # Input area at bottom
@@ -407,3 +420,131 @@ with st.sidebar:
     
     st.markdown("---")
     st.caption("🛡️ AntarAtma is a self-help companion, not a substitute for professional care.")
+
+# --- Auto-scroll functionality ---
+def auto_scroll():
+    st.markdown('''
+    <script>
+    function scrollToBottom() {
+        // Try multiple selectors to find the scrollable container
+        var containers = [
+            document.querySelector('.main-content'),
+            document.querySelector('[data-testid="stVerticalBlock"]'),
+            document.querySelector('.stApp'),
+            document.querySelector('section.main'),
+            window
+        ];
+        
+        for (var container of containers) {
+            if (container && container !== window) {
+                container.scrollTop = container.scrollHeight;
+            } else if (container === window) {
+                window.scrollTo(0, document.body.scrollHeight);
+            }
+        }
+    }
+    
+    // Immediate scroll
+    scrollToBottom();
+    
+    // Delayed scroll to handle dynamic content
+    setTimeout(scrollToBottom, 100);
+    setTimeout(scrollToBottom, 300);
+    setTimeout(scrollToBottom, 500);
+    
+    // Observer for new content
+    if (window.MutationObserver) {
+        var observer = new MutationObserver(function() {
+            setTimeout(scrollToBottom, 50);
+        });
+        observer.observe(document.body, {childList: true, subtree: true});
+        setTimeout(function() { observer.disconnect(); }, 2000);
+    }
+    </script>
+    ''', unsafe_allow_html=True)
+
+# Call auto-scroll function
+auto_scroll()
+
+# Check if we need to scroll due to new messages
+current_message_count = len(st.session_state.history)
+if current_message_count > st.session_state.message_count:
+    st.session_state.message_count = current_message_count
+    # Additional scroll trigger for new messages
+    st.markdown('''
+    <script>
+    function forceScroll() {
+        window.scrollTo(0, document.body.scrollHeight);
+        var containers = document.querySelectorAll('[data-testid="stVerticalBlock"], section.main, .main-content');
+        containers.forEach(function(container) {
+            if (container) container.scrollTop = container.scrollHeight;
+        });
+    }
+    forceScroll();
+    setTimeout(forceScroll, 100);
+    setTimeout(forceScroll, 300);
+    </script>
+    ''', unsafe_allow_html=True)
+
+# --- Dark mode toggle ---
+dark_mode = st.sidebar.toggle('🌙 Dark mode', value=False)
+if dark_mode:
+    st.markdown('''<style>:root {
+        --primary-color: #6366f1;
+        --secondary-color: #8b5cf6;
+        --user-color: #6366f1;
+        --bot-color: #22223b;
+        --text-color: #f8fafc;
+        --light-bg: #181825;
+        --dark-bg: #232946;
+    }</style>''', unsafe_allow_html=True)
+else:
+    st.markdown('''<style>:root {
+        --primary-color: #6366f1;
+        --secondary-color: #8b5cf6;
+        --user-color: #4f46e5;
+        --bot-color: #7c3aed;
+        --text-color: #1e293b;
+        --light-bg: #f8fafc;
+        --dark-bg: #ffffff;
+    }</style>''', unsafe_allow_html=True)
+
+# --- Export chat history ---
+import io
+if st.sidebar.button('📦 Export chat history'):
+    chat_json = json.dumps(st.session_state.history, indent=2, ensure_ascii=False)
+    st.sidebar.download_button('Download chat history', chat_json, file_name='antaratma_chat_history.json', mime='application/json')
+
+# --- Claude-like bubble tails and animation ---
+st.markdown('''<style>
+.message.user-message .message-content {
+    position: relative;
+}
+.message.user-message .message-content:after {
+    content: '';
+    position: absolute;
+    right: -12px;
+    bottom: 8px;
+    width: 0;
+    height: 0;
+    border-top: 12px solid var(--user-color);
+    border-left: 12px solid transparent;
+}
+.message.bot-message .message-content {
+    position: relative;
+}
+.message.bot-message .message-content:after {
+    content: '';
+    position: absolute;
+    left: -12px;
+    bottom: 8px;
+    width: 0;
+    height: 0;
+    border-top: 12px solid var(--dark-bg);
+    border-right: 12px solid transparent;
+    filter: drop-shadow(0 0 2px #e2e8f0);
+}
+.message {
+    animation: fadeIn 0.4s cubic-bezier(.39,.575,.56,1.000) both;
+}
+</style>''', unsafe_allow_html=True)
